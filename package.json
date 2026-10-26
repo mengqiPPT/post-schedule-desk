@@ -1,0 +1,47 @@
+{
+  "name": "post-schedule-desk",
+  "version": "1.7.0",
+  "private": true,
+  "description": "Markdown 帖子按天分组与一键复制工具",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test:static": "node desktop/static-test.mjs",
+    "pack:win": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "cn.postschedule.desk",
+    "productName": "帖子日程台",
+    "asar": true,
+    "files": [
+      "desktop/main.cjs",
+      "desktop/preload.cjs",
+      "dist/index.html",
+      "dist/app-v2.js"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop/paste-helper.exe",
+        "to": "paste-helper.exe"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "帖子日程台-${version}-Windows-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3"
+  }
+}

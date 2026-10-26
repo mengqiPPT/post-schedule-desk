@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b78">
+  <meta name="description" content="导入 Markdown 帖子，自动按每天 10 条分组，一键复制标题和正文。">
+  <title>帖子日程台 · 一键复制</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23173b78'/%3E%3Crect x='18' y='14' width='28' height='34' rx='4' fill='white'/%3E%3Cpath d='M25 24h14M25 31h14M25 38h9' stroke='%23173b78' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M13 23v25a5 5 0 0 0 5 5h20' fill='none' stroke='%236ee7b7' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #14213b;
+      --muted: #64718a;
+      --line: #d9e0ea;
+      --soft-line: #e9edf3;
+      --paper: #ffffff;
+      --canvas: #f3f6fa;
+      --blue: #173b78;
+      --blue-bright: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #0f766e;
+      --green-soft: #ddf7ee;
+      --amber: #9a5b0a;
+      --amber-soft: #fff1d6;
+      --danger: #b42318;
+      --shadow: 0 16px 45px rgba(23, 59, 120, 0.09);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.35);
+      outline-offset: 2px;
+    }
+
+    .app-shell { min-height: 100vh; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 72px;
+      padding: 12px clamp(18px, 3vw, 42px);
+      color: #fff;
+      background: var(--blue);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #fff;
+      color: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(20, 33, 59, 0.08);
+    }
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand-title { margin: 0; font-size: 1.08rem; font-weight: 760; letter-spacing: 0.02em; }
+    .brand-file {
+      max-width: min(42vw, 520px);
+      overflow: hidden;
+      color: rgba(255,255,255,0.72);
+      font-size: 0.82rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .course-select {
+      min-height: 42px;
+      max-width: min(32vw, 320px);
+      padding: 8px 34px 8px 12px;
+      overflow: hidden;
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 11px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .course-select option { color: var(--ink); background: #fff; }
+    .ghost-button, .solid-button, .outline-button, .danger-button {
+      min-height: 42px;
+      padding: 9px 15px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+    .ghost-button:hover, .solid-button:hover, .outline-button:hover, .danger-button:hover { transform: translateY(-1px); }
+    .ghost-button { color: #fff; border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.08); }
+    .ghost-button:hover { background: rgba(255,255,255,0.15); }
+    .delete-course-button { color: #ffe5e2; border-color: rgba(255, 184, 176, 0.42); }
+    .delete-course-button:hover { background: rgba(180, 35, 24, 0.34); border-color: rgba(255, 211, 206, 0.62); }
+    .solid-button { color: #fff; background: var(--blue-bright); box-shadow: 0 7px 18px rgba(37,99,235,0.22); }
+    .solid-button:hover { background: #1d55cc; }
+    .solid-button:disabled { cursor: not-allowed; opacity: 0.46; transform: none; box-shadow: none; }
+    .outline-button { color: var(--blue); border-color: #b7c8e3; background: #fff; }
+    .outline-button:hover { border-color: var(--blue-bright); background: var(--blue-soft); }
+    .danger-button { color: var(--danger); border-color: #f0c8c4; background: #fff; }
+
+    .empty-view {
+      display: grid;
+      place-items: center;
+      min-height: calc(100vh - 72px);
+      padding: 32px 18px;
+    }
+    .empty-card {
+      width: min(760px, 100%);
+      padding: clamp(26px, 5vw, 54px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+    }
+    .eyebrow { margin: 0 0 10px; color: var(--blue-bright); font-size: 0.84rem; font-weight: 800; letter-spacing: 0.12em; }
+    .empty-card h2 { margin: 0; font-size: clamp(1.8rem, 4.5vw, 3.25rem); line-height: 1.15; letter-spacing: -0.035em; }
+    .empty-intro { max-width: 620px; margin: 16px 0 26px; color: var(--muted); font-size: 1.02rem; }
+
+    .drop-zone {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 210px;
+      padding: 28px;
+      text-align: center;
+      border: 2px dashed #9bb2d6;
+      border-radius: 18px;
+      background: #f7faff;
+      transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+    }
+    .drop-zone.dragging { background: var(--blue-soft); border-color: var(--blue-bright); transform: scale(1.008); }
+    .drop-icon {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin-bottom: 12px;
+      color: var(--blue);
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+    .drop-icon svg { width: 28px; height: 28px; }
+    .drop-zone strong { display: block; font-size: 1.12rem; }
+    .drop-zone span { color: var(--muted); font-size: 0.9rem; }
+    .drop-zone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+    .empty-actions { display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .privacy-note { margin: 18px 0 0; color: var(--muted); font-size: 0.86rem; text-align: center; }
+
+    .workspace { display: grid; grid-template-columns: 286px minmax(0, 1fr); min-height: calc(100vh - 72px); }
+    .day-sidebar {
+      position: sticky;
+      top: 72px;
+      height: calc(100vh - 72px);
+      overflow: hidden;
+      background: #eaf0f8;
+      border-right: 1px solid #cfd9e7;
+    }
+    .sidebar-head { padding: 22px 20px 16px; border-bottom: 1px solid #cfd9e7; }
+    .sidebar-kicker { color: var(--muted); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; }
+    .sidebar-title { margin: 4px 0 0; font-size: 1.1rem; line-height: 1.35; }
+    .day-list { height: calc(100% - 92px); overflow-y: auto; padding: 10px; }
+    .day-button {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 62px;
+      margin: 3px 0;
+      padding: 8px 10px;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .day-button:hover { background: rgba(255,255,255,0.72); }
+    .day-button.active { background: #fff; border-color: #b8c8df; box-shadow: 0 5px 18px rgba(23,59,120,0.08); }
+    .day-number {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      color: var(--blue);
+      background: rgba(255,255,255,0.7);
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+    .day-button.active .day-number { color: #fff; background: var(--blue); }
+    .day-date { display: block; color: var(--ink); font-size: 0.9rem; font-weight: 700; }
+    .day-range { display: block; color: var(--muted); font-size: 0.75rem; }
+    .day-progress { color: var(--muted); font-size: 0.76rem; font-weight: 750; }
+    .day-progress.done { color: var(--green); }
+
+    .main { min-width: 0; padding: 28px clamp(18px, 3.4vw, 52px) 70px; }
+    .summary-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      max-width: 1120px;
+      margin: 0 auto 18px;
+    }
+    .summary-panel h2 { margin: 3px 0 0; font-size: clamp(1.75rem, 4vw, 2.8rem); line-height: 1.2; letter-spacing: -0.035em; }
+    .day-subtitle { margin: 8px 0 0; color: var(--muted); }
+    .date-control { display: grid; gap: 5px; min-width: 170px; }
+    .date-control label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
+    .date-control input { min-height: 44px; padding: 8px 11px; color: var(--ink); border: 1px solid #b9c6d8; border-radius: 10px; background: #fff; }
+
+    .progress-strip {
+      max-width: 1120px;
+      margin: 0 auto 22px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .progress-meta { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 9px; color: var(--muted); font-size: 0.84rem; }
+    .progress-meta strong { color: var(--ink); }
+    .progress-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e8edf4; }
+    .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--green); transition: width 250ms ease; }
+
+    .mobile-day-nav { display: none; max-width: 1120px; margin: 0 auto 16px; grid-template-columns: auto 1fr auto; gap: 8px; }
+    .mobile-day-nav button { min-height: 44px; }
+    .mobile-day-label { display: grid; place-items: center; padding: 7px 12px; background: #fff; border: 1px solid var(--line); border-radius: 10px; font-weight: 760; }
+
+    .post-grid { display: grid; gap: 14px; max-width: 1120px; margin: 0 auto; }
+    .post-card {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 7px 24px rgba(20,33,59,0.045);
+    }
+    .post-index {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      background: #f4f7fb;
+      border-right: 1px solid var(--soft-line);
+      font-size: 0.84rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .post-actions { min-width: 0; }
+    .copy-title, .copy-content {
+      position: relative;
+      display: block;
+      width: 100%;
+      padding: 18px 58px 18px 20px;
+      text-align: left;
+      background: #fff;
+      border: 0;
+      cursor: pointer;
+    }
+    .copy-title { color: var(--ink); font-weight: 800; font-size: 1.03rem; border-bottom: 1px solid var(--soft-line); }
+    .copy-content { color: #34425c; }
+    .copy-title:hover, .copy-content:hover { background: #f8fbff; }
+    .copy-title.copied, .copy-content.copied { background: #f3fcf8; }
+    .copy-content span { display: block; }
+    .copy-content span + span { margin-top: 5px; }
+    .copy-label {
+      position: absolute;
+      top: 50%;
+      right: 16px;
+      transform: translateY(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--blue-bright);
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .copied .copy-label { color: var(--green); }
+    .copy-label svg { width: 16px; height: 16px; }
+
+    .day-finish {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      max-width: 1120px;
+      margin: 22px auto 0;
+      padding: 18px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 16px;
+    }
+    .day-finish p { margin: 0; color: rgba(255,255,255,0.74); font-size: 0.88rem; }
+    .day-finish strong { display: block; color: #fff; font-size: 1rem; }
+    .day-finish .solid-button { background: #fff; color: var(--blue); box-shadow: none; }
+
+    .compact-toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      max-width: 1120px;
+      margin: 0 auto 10px;
+    }
+    .compact-toolbar button:last-child { justify-self: stretch; }
+    .compact-position { color: var(--muted); font-size: 0.82rem; font-weight: 800; white-space: nowrap; }
+    .compact-day-toolbar { display: none; }
+    .compact-day-toolbar .ready { color: #075e57; border-color: #92d3c2; background: #e8f8f2; }
+    .direct-fill-control {
+      display: grid;
+      gap: 7px;
+      max-width: 1120px;
+      margin: 0 auto 10px;
+    }
+    .direct-fill-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 52px;
+      padding: 8px 11px;
+      color: #41506a;
+      text-align: left;
+      background: #fff;
+      border: 1px solid #cbd5e2;
+      border-radius: 11px;
+      cursor: pointer;
+    }
+    .direct-fill-toggle.active { color: #075e57; background: #e8f8f2; border-color: #92d3c2; }
+    .direct-fill-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: #9aa6b7; box-shadow: 0 0 0 4px rgba(154,166,183,0.16); }
+    .direct-fill-toggle.active .direct-fill-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(15,118,110,0.14); }
+    .direct-fill-copy { display: grid; line-height: 1.35; }
+    .direct-fill-copy strong { font-size: 0.84rem; }
+    .direct-fill-copy small { color: var(--muted); font-size: 0.7rem; font-weight: 600; }
+    .direct-fill-guide {
+      max-width: 1120px;
+      margin: 0;
+      padding: 8px 10px;
+      color: #42516a;
+      background: #eaf1ff;
+      border: 1px solid #cad9f1;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .automation-launch {
+      display: none;
+      max-width: 1120px;
+      margin: 0 auto 10px;
+    }
+    .automation-open-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 52px;
+      padding: 9px 11px;
+      color: #5f3b08;
+      text-align: left;
+      background: var(--amber-soft);
+      border: 1px solid #e8c47f;
+      border-radius: 11px;
+      cursor: pointer;
+    }
+    .automation-open-button:hover { background: #ffe9bd; }
+    .automation-icon { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; background: var(--amber); border-radius: 8px; font-weight: 900; }
+    .automation-copy { display: grid; line-height: 1.35; }
+    .automation-copy strong { font-size: 0.84rem; }
+    .automation-copy small { color: #785418; font-size: 0.7rem; font-weight: 650; }
+    .automation-arrow { font-size: 1.1rem; font-weight: 900; }
+
+    body.compact-app { min-width: 0; overflow-x: hidden; }
+    .compact-app .topbar {
+      position: sticky;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      min-height: 0;
+      padding: 9px 10px 10px;
+    }
+    .compact-app .brand-mark { width: 32px; height: 32px; border-radius: 9px; }
+    .compact-app .brand-mark svg { width: 19px; height: 19px; }
+    .compact-app .brand-title { font-size: 0.96rem; }
+    .compact-app .brand-file { display: none; }
+    .compact-app .top-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      width: 100%;
+      gap: 7px;
+    }
+    .compact-app .course-select { width: 100%; max-width: none; min-height: 38px; }
+    .compact-app #replaceFileButton,
+    .compact-app #deleteCourseButton { display: none; }
+    .compact-app #compactModeButton { min-height: 38px; padding: 7px 11px; }
+    .compact-app #compactModeButton span { display: none; }
+    .compact-app #compactModeButton::after { content: "退出小窗"; }
+    .compact-app .workspace { display: block; min-height: 0; }
+    .compact-app .day-sidebar,
+    .compact-app .mobile-day-nav,
+    .compact-app .progress-strip,
+    .compact-app .day-finish { display: none; }
+    .compact-app .main { padding: 11px 10px 16px; }
+    .compact-app .summary-panel {
+      display: block;
+      margin: 0 0 10px;
+      padding: 0 2px;
+    }
+    .compact-app .summary-panel h2 { margin-top: 0; font-size: 1.03rem; letter-spacing: -0.01em; }
+    .compact-app .summary-panel .eyebrow { margin: 0 0 2px; font-size: 0.72rem; }
+    .compact-app .day-subtitle { margin: 2px 0 0; font-size: 0.78rem; }
+    .compact-app .date-control { display: none; }
+    .compact-app .compact-toolbar { display: grid; }
+    .compact-app .compact-day-toolbar { display: grid; }
+    .compact-app .direct-fill-control { display: grid; }
+    .compact-app .automation-launch { display: block; }
+    .compact-app .compact-toolbar button { min-height: 38px; padding: 7px 10px; }
+    .compact-app .post-grid { gap: 0; margin: 0; }
+    .compact-app .post-card { display: none; grid-template-columns: 38px minmax(0, 1fr); border-radius: 13px; box-shadow: none; }
+    .compact-app .post-card.compact-active { display: grid; }
+    .compact-app .post-index { font-size: 0.73rem; }
+    .compact-app .copy-title,
+    .compact-app .copy-content { padding: 13px 12px 38px; }
+    .compact-app .copy-title { font-size: 0.96rem; line-height: 1.55; }
+    .compact-app .copy-content { max-height: 390px; overflow-y: auto; font-size: 0.88rem; line-height: 1.68; }
+    .compact-app .copy-label { top: auto; right: 11px; bottom: 10px; transform: none; }
+    .compact-app.direct-fill-active .copy-title:hover,
+    .compact-app.direct-fill-active .copy-content:hover { background: #f0fbf7; }
+    .compact-app.direct-fill-active .copy-label { color: var(--green); }
+    .compact-app .toast { right: 10px; bottom: 10px; max-width: calc(100vw - 20px); }
+
+    dialog {
+      width: min(720px, calc(100vw - 28px));
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 80px rgba(20,33,59,0.22);
+    }
+    dialog::backdrop { background: rgba(11, 24, 48, 0.52); backdrop-filter: blur(3px); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .dialog-head h2 { margin: 0; font-size: 1.16rem; }
+    .icon-button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: #eef2f7; cursor: pointer; font-size: 1.25rem; }
+    .dialog-body { padding: 20px; }
+    .dialog-body textarea { width: 100%; min-height: 330px; resize: vertical; padding: 14px; color: var(--ink); border: 1px solid #b9c6d8; border-radius: 12px; line-height: 1.55; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+
+    .automation-dialog { width: min(760px, calc(100vw - 28px)); }
+    .automation-dialog .dialog-body { max-height: min(720px, calc(100vh - 110px)); overflow-y: auto; }
+    .automation-note {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      color: #513b14;
+      background: #fff7e6;
+      border-left: 4px solid #d89525;
+      border-radius: 4px 10px 10px 4px;
+      font-size: 0.88rem;
+    }
+    .automation-section-title { margin: 20px 0 9px; font-size: 0.93rem; }
+    .point-list { display: grid; gap: 8px; }
+    .point-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f6f8fb;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .point-name { font-weight: 750; }
+    .point-status { color: var(--muted); font-family: Consolas, monospace; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+    .point-row button { min-height: 36px; padding: 6px 11px; }
+    .automation-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .setting-field { display: grid; gap: 5px; }
+    .setting-field label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
+    .setting-field input, .setting-field select { min-height: 42px; padding: 7px 10px; color: var(--ink); background: #fff; border: 1px solid #b9c6d8; border-radius: 9px; }
+    .automation-ready {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin-top: 16px;
+      padding: 11px 12px;
+      background: #f2f6fb;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.86rem;
+    }
+    .automation-ready input { width: 18px; height: 18px; margin-top: 2px; }
+    .automation-dialog .dialog-actions { flex-wrap: wrap; }
+
+    .automation-hud {
+      display: none;
+      height: 100vh;
+      padding: 14px;
+      color: #fff;
+      background: #10264b;
+    }
+    body.automation-running { min-width: 0; overflow: hidden; background: #10264b; }
+    body.automation-running .app-shell,
+    body.automation-running dialog,
+    body.automation-running .toast { display: none; }
+    body.automation-running .automation-hud { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    .automation-hud-copy { min-width: 0; }
+    .automation-hud-kicker { margin: 0; color: #9fb6dc; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; }
+    .automation-hud-title { margin: 2px 0 1px; overflow: hidden; font-size: 0.98rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+    .automation-hud-detail { margin: 0; color: #ced8e9; font-size: 0.76rem; }
+    .automation-hud-progress { height: 5px; margin-top: 9px; overflow: hidden; background: rgba(255,255,255,0.16); border-radius: 5px; }
+    .automation-hud-progress span { display: block; width: 0; height: 100%; background: #6ee7b7; transition: width 180ms ease; }
+    .automation-stop { min-height: 48px; padding: 8px 14px; color: #fff; background: #b42318; border: 1px solid #e97066; border-radius: 10px; cursor: pointer; font-weight: 850; }
+    .automation-stop:hover { background: #8f1d14; }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 50;
+      max-width: min(420px, calc(100vw - 32px));
+      padding: 12px 16px;
+      color: #fff;
+      background: #10264b;
+      border-radius: 11px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--danger); }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 880px) {
+      .workspace { display: block; }
+      .day-sidebar { display: none; }
+      .mobile-day-nav { display: grid; }
+      .main { padding-top: 20px; }
+      .summary-panel { grid-template-columns: 1fr; align-items: start; gap: 14px; }
+      .date-control { width: min(240px, 100%); }
+    }
+
+    @media (max-width: 620px) {
+      .topbar { min-height: 66px; padding: 10px 14px; }
+      .brand-file { display: none; }
+      .top-actions .ghost-button span { display: none; }
+      #replaceFileButton::after { content: "+ 添加"; }
+      #deleteCourseButton::after { content: "删除"; }
+      .course-select { max-width: 138px; }
+      .empty-card { padding: 24px 18px; border-radius: 20px; }
+      .drop-zone { min-height: 190px; padding: 20px; }
+      .main { padding-inline: 12px; }
+      .post-card { grid-template-columns: 40px minmax(0,1fr); border-radius: 14px; }
+      .copy-title, .copy-content { padding: 15px 16px 42px; }
+      .copy-label { top: auto; right: 14px; bottom: 12px; transform: none; }
+      .day-finish { align-items: stretch; flex-direction: column; }
+      .day-finish button { width: 100%; }
+      .automation-settings { grid-template-columns: 1fr; }
+      .point-row { grid-template-columns: minmax(0, 1fr) auto; }
+      .point-status { grid-column: 1; grid-row: 2; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="4" width="12" height="15" rx="2"/><path d="M5 8H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-1M10 9h6M10 13h6"/></svg>
+        </div>
+        <div>
+          <p class="brand-title">帖子日程台</p>
+          <div class="brand-file" id="brandFile">一键复制标题与正文</div>
+        </div>
+      </div>
+      <div class="top-actions" id="topActions" hidden>
+        <select class="course-select" id="courseSelect" aria-label="切换课程"></select>
+        <button class="ghost-button" id="replaceFileButton" type="button"><span>添加 Markdown</span></button>
+        <button class="ghost-button delete-course-button" id="deleteCourseButton" type="button"><span>删除当前课程</span></button>
+        <button class="ghost-button" id="compactModeButton" type="button" hidden><span>悬浮小窗</span></button>
+      </div>
+    </header>
+
+    <main class="empty-view" id="emptyView">
+      <section class="empty-card" aria-labelledby="emptyTitle">
+        <p class="eyebrow">每天 10 条 · 自动排期</p>
+        <h2 id="emptyTitle">把 Markdown 丢进来，<br>今天的帖子马上就绪。</h2>
+        <p class="empty-intro">可以一次选择三门课的 Markdown。系统会分别保存并按每 10 条分组，点击标题只复制标题，点击正文只复制正文。</p>
+        <label class="drop-zone" id="dropZone">
+          <span class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V3m0 0L7 8m5-5 5 5"/><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></svg>
+          </span>
+          <strong>拖入一个或多个 Markdown 文件</strong>
+          <span>或者点击这里同时选择多个 .md 文件</span>
+          <input id="fileInput" type="file" multiple accept=".md,text/markdown,text/plain" aria-label="选择一个或多个 Markdown 文件">
+        </label>
+        <div class="empty-actions">
+          <button class="outline-button" id="pasteButton" type="button">粘贴 Markdown 文本</button>
+        </div>
+        <p class="privacy-note">导入一次后会长期保存在当前浏览器，文件内容不会上传到服务器。</p>
+      </section>
+    </main>
+
+    <div class="workspace" id="workspace" hidden>
+      <aside class="day-sidebar" aria-label="120天帖子日程">
+        <div class="sidebar-head">
+          <span class="sidebar-kicker">POSTING PLAN</span>
+          <h2 class="sidebar-title" id="sidebarTitle">帖子日程</h2>
+        </div>
+        <nav class="day-list" id="dayList"></nav>
+      </aside>
+
+      <main class="main">
+        <section class="summary-panel">
+          <div>
+            <p class="eyebrow" id="dayEyebrow">第 1 / 120 天</p>
+            <h2 id="currentDayTitle">今天的 10 条帖子</h2>
+            <p class="day-subtitle" id="daySubtitle">第 1–10 条</p>
+          </div>
+          <div class="date-control">
+            <label for="startDate">排期开始日期</label>
+            <input type="date" id="startDate">
+          </div>
+        </section>
+
+        <div class="mobile-day-nav" aria-label="切换日期">
+          <button class="outline-button" id="mobilePrev" type="button" aria-label="上一天">←</button>
+          <div class="mobile-day-label" id="mobileDayLabel">第 1 天</div>
+          <button class="outline-button" id="mobileNext" type="button" aria-label="下一天">→</button>
+        </div>
+
+        <section class="progress-strip" aria-label="当前批次进度">
+          <div class="progress-meta">
+            <span>今日完成 <strong id="dayDoneCount">0 / 10</strong></span>
+            <span>总进度 <strong id="totalDoneCount">0 / 1200</strong></span>
+          </div>
+          <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+        </section>
+
+        <section class="direct-fill-control" id="directFillControl" hidden aria-label="直接填入设置">
+          <button class="direct-fill-toggle" id="directFillButton" type="button" aria-pressed="false">
+            <span class="direct-fill-dot" aria-hidden="true"></span>
+            <span class="direct-fill-copy">
+              <strong id="directFillTitle">直接填入：关闭</strong>
+              <small id="directFillHint">点此开启，不占用任何系统快捷键</small>
+            </span>
+          </button>
+          <p class="direct-fill-guide" id="directFillGuide">先点学校网页的输入框，再点下方对应的标题或正文，它会直接写入。</p>
+        </section>
+
+        <section class="automation-launch" id="automationLaunch" aria-label="全自动发布">
+          <button class="automation-open-button" id="openAutomationButton" type="button">
+            <span class="automation-icon" aria-hidden="true">A</span>
+            <span class="automation-copy">
+              <strong>全自动发布</strong>
+              <small id="automationLaunchHint">先定位网页上的4个位置，再自动完成当前批次</small>
+            </span>
+            <span class="automation-arrow" aria-hidden="true">›</span>
+          </button>
+        </section>
+
+        <div class="compact-toolbar" id="compactToolbar" hidden aria-label="切换当前帖子">
+          <button class="outline-button" id="compactPrev" type="button">← 上一条</button>
+          <span class="compact-position" id="compactPosition">1 / 10</span>
+          <button class="outline-button" id="compactNext" type="button">下一条 →</button>
+        </div>
+
+        <div class="compact-toolbar compact-day-toolbar" id="compactDayToolbar" hidden aria-label="切换帖子日期">
+          <button class="outline-button" id="compactPrevDay" type="button">← 上一天</button>
+          <span class="compact-position" id="compactDayPosition">第 1 / 120 天</span>
+          <button class="outline-button" id="compactNextDay" type="button">下一天 →</button>
+        </div>
+
+        <section class="post-grid" id="postGrid" aria-live="polite"></section>
+
+        <section class="day-finish">
+          <div>
+            <strong id="finishTitle">复制完今天 10 条后，可进入下一天</strong>
+            <p id="finishHint">标题和正文都复制过，才算完成一条。</p>
+          </div>
+          <button class="solid-button" id="nextDayButton" type="button" disabled>完成，进入下一天 →</button>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="pasteDialog">
+    <div class="dialog-head">
+      <h2>粘贴 Markdown 文本</h2>
+      <button class="icon-button" id="closeDialog" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="dialog-body">
+      <textarea id="pasteArea" placeholder="# 课程帖子&#10;&#10;### 1. 帖子标题&#10;&#10;知识点正文&#10;一句话理解：……&#10;学习提醒：……"></textarea>
+      <div class="dialog-actions">
+        <button class="outline-button" id="cancelPaste" type="button">取消</button>
+        <button class="solid-button" id="importPaste" type="button">导入文本</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="automation-dialog" id="automationDialog">
+    <div class="dialog-head">
+      <h2>全自动发布设置</h2>
+      <button class="icon-button" id="closeAutomationDialog" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="automation-note">位置只需设置一次。设置时点击“记录位置”，应用会隐藏3秒；请把鼠标移到学校网页对应位置并保持不动。自动运行时不要移动、缩放或滚动浏览器，出现验证码、登录失效或页面报错时请立即停止。</p>
+
+      <h3 class="automation-section-title">1. 记录学校网页位置</h3>
+      <div class="point-list">
+        <div class="point-row">
+          <span class="point-name">① “发表帖子”按钮</span>
+          <span class="point-status" data-point-status="publish">未设置</span>
+          <button class="outline-button capture-point-button" type="button" data-point="publish">记录位置</button>
+        </div>
+        <div class="point-row">
+          <span class="point-name">② 标题输入框</span>
+          <span class="point-status" data-point-status="title">未设置</span>
+          <button class="outline-button capture-point-button" type="button" data-point="title">记录位置</button>
+        </div>
+        <div class="point-row">
+          <span class="point-name">③ 正文编辑框</span>
+          <span class="point-status" data-point-status="content">未设置</span>
+          <button class="outline-button capture-point-button" type="button" data-point="content">记录位置</button>
+        </div>
+        <div class="point-row">
+          <span class="point-name">④ “保存”按钮</span>
+          <span class="point-status" data-point-status="save">未设置</span>
+          <button class="outline-button capture-point-button" type="button" data-point="save">记录位置</button>
+        </div>
+      </div>
+
+      <h3 class="automation-section-title">2. 设置本轮数量和间隔</h3>
+      <div class="automation-settings">
+        <div class="setting-field">
+          <label for="automationDays">连续发布天数</label>
+          <input id="automationDays" type="number" min="1" max="120" step="1" value="1">
+        </div>
+        <div class="setting-field">
+          <label for="automationInterval">每条之间间隔（秒）</label>
+          <input id="automationInterval" type="number" min="1" max="3600" step="1" value="5">
+        </div>
+        <div class="setting-field">
+          <label for="automationSpeed">网页响应速度</label>
+          <select id="automationSpeed">
+            <option value="stable">稳定模式（推荐）</option>
+            <option value="slow">慢速模式</option>
+            <option value="fast">快速模式</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="automation-ready">
+        <input id="automationReady" type="checkbox">
+        <span>我已经打开正确的课程讨论页面，并会保持浏览器窗口位置和缩放不变。本功能不会处理验证码或登录验证。</span>
+      </label>
+
+      <div class="dialog-actions">
+        <button class="outline-button" id="cancelAutomation" type="button">取消</button>
+        <button class="outline-button" id="testAutomationButton" type="button" disabled>试跑当前1条</button>
+        <button class="solid-button" id="startAutomationButton" type="button" disabled>自动发布本轮</button>
+      </div>
+    </div>
+  </dialog>
+
+  <section class="automation-hud" id="automationHud" hidden aria-live="assertive">
+    <div class="automation-hud-copy">
+      <p class="automation-hud-kicker" id="automationHudKicker">全自动发布</p>
+      <h2 class="automation-hud-title" id="automationHudTitle">准备开始</h2>
+      <p class="automation-hud-detail" id="automationHudDetail">保持浏览器窗口不动</p>
+      <div class="automation-hud-progress" aria-hidden="true"><span id="automationHudProgress"></span></div>
+    </div>
+    <button class="automation-stop" id="stopAutomationButton" type="button">立即停止</button>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app-v2.js?v=1.7.0"></script>
+  <script>
+    (() => {
+      'use strict';
+      if (window.POST_LIBRARY_V2) return;
+
+      const STORAGE_KEY = 'post-schedule-desk-v1';
+      const POSTS_PER_DAY = 10;
+      const defaultState = () => ({
+        posts: [],
+        fileName: '',
+        courseName: '',
+        startDate: todayISO(),
+        selectedDay: 1,
+        copied: {}
+      });
+
+      let state = loadState();
+      let toastTimer = null;
+
+      const els = {
+        emptyView: document.getElementById('emptyView'),
+        workspace: document.getElementById('workspace'),
+        topActions: document.getElementById('topActions'),
+        brandFile: document.getElementById('brandFile'),
+        dropZone: document.getElementById('dropZone'),
+        fileInput: document.getElementById('fileInput'),
+        pasteButton: document.getElementById('pasteButton'),
+        replaceFileButton: document.getElementById('replaceFileButton'),
+        pasteDialog: document.getElementById('pasteDialog'),
+        closeDialog: document.getElementById('closeDialog'),
+        cancelPaste: document.getElementById('cancelPaste'),
+        importPaste: document.getElementById('importPaste'),
+        pasteArea: document.getElementById('pasteArea'),
+        sidebarTitle: document.getElementById('sidebarTitle'),
+        dayList: document.getElementById('dayList'),
+        dayEyebrow: document.getElementById('dayEyebrow'),
+        currentDayTitle: document.getElementById('currentDayTitle'),
+        daySubtitle: document.getElementById('daySubtitle'),
+        startDate: document.getElementById('startDate'),
+        mobilePrev: document.getElementById('mobilePrev'),
+        mobileNext: document.getElementById('mobileNext'),
+        mobileDayLabel: document.getElementById('mobileDayLabel'),
+        dayDoneCount: document.getElementById('dayDoneCount'),
+        totalDoneCount: document.getElementById('totalDoneCount'),
+        progressFill: document.getElementById('progressFill'),
+        postGrid: document.getElementById('postGrid'),
+        finishTitle: document.getElementById('finishTitle'),
+        finishHint: document.getElementById('finishHint'),
+        nextDayButton: document.getElementById('nextDayButton'),
+        toast: document.getElementById('toast')
+      };
+
+      function todayISO() {
+        const now = new Date();
+        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 10);
+      }
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (saved && Array.isArray(saved.posts)) return { ...defaultState(), ...saved };
+        } catch (error) {
+          console.warn('无法读取已保存进度', error);
+        }
+        return defaultState();
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          showToast('浏览器存储空间不足，当前进度可能无法保存。', true);
+        }
+      }
+
+      function parseMarkdown(markdown, fileName = '粘贴的 Markdown') {
+        const normalized = String(markdown || '').replace(/\r\n?/g, '\n');
+        const matcher = /^###\s+(\d+)\.\s+(.+?)\s*$/gm;
+        const matches = Array.from(normalized.matchAll(matcher));
+        if (!matches.length) {
+          throw new Error('没有识别到帖子。标题需要写成“### 1. 标题”这样的格式。');
+        }
+
+        const posts = matches.map((match, index) => {
+          const start = match.index + match[0].length;
+          const end = index + 1 < matches.length ? matches[index + 1].index : normalized.length;
+          const lines = normalized.slice(start, end)
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line && line !== '---' && !/^#{1,2}\s/.test(line));
+          if (!lines.length) throw new Error(`第 ${index + 1} 条帖子没有正文。`);
+          return {
+            id: index + 1,
+            sourceNumber: Number(match[1]),
+            title: match[2].trim(),
+            content: lines.join('\n'),
+            lines
+          };
+        });
+
+        const h1 = normalized.match(/^#\s+(.+?)\s*$/m);
+        const courseName = h1 ? h1[1].replace(/知识点帖子|帖子/g, '').trim() : fileName.replace(/\.md$/i, '');
+        return { posts, courseName };
+      }
+
+      function importMarkdown(markdown, fileName) {
+        const parsed = parseMarkdown(markdown, fileName);
+        if (state.posts.length && !window.confirm('导入新文件会替换当前帖子和复制进度，确定继续吗？')) return;
+        state = {
+          posts: parsed.posts,
+          fileName,
+          courseName: parsed.courseName || fileName,
+          startDate: todayISO(),
+          selectedDay: 1,
+          copied: {}
+        };
+        saveState();
+        render();
+        showToast(`已导入 ${state.posts.length} 条，自动分成 ${totalDays()} 天。`);
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+        if (!/\.md$/i.test(file.name) && !/^text\//.test(file.type || '')) {
+          showToast('请选择 Markdown（.md）文件。', true);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          try { importMarkdown(reader.result, file.name); }
+          catch (error) { showToast(error.message, true); }
+        };
+        reader.onerror = () => showToast('文件读取失败，请重新选择。', true);
+        reader.readAsText(file, 'utf-8');
+      }
+
+      function totalDays() { return Math.max(1, Math.ceil(state.posts.length / POSTS_PER_DAY)); }
+
+      function dateForDay(day) {
+        const date = new Date(`${state.startDate}T12:00:00`);
+        date.setDate(date.getDate() + day - 1);
+        return date;
+      }
+
+      function formatDate(day, full = false) {
+        const date = dateForDay(day);
+        return new Intl.DateTimeFormat('zh-CN', full
+          ? { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }
+          : { month: 'numeric', day: 'numeric', weekday: 'short' }
+        ).format(date);
+      }
+
+      function completed(postIndex) {
+        const status = state.copied[postIndex];
+        return Boolean(status && status.title && status.content);
+      }
+
+      function dayStats(day) {
+        const start = (day - 1) * POSTS_PER_DAY;
+        const posts = state.posts.slice(start, start + POSTS_PER_DAY);
+        return { posts, done: posts.filter((_, offset) => completed(start + offset)).length };
+      }
+
+      function setDay(day, scroll = true) {
+        state.selectedDay = Math.min(Math.max(Number(day) || 1, 1), totalDays());
+        saveState();
+        renderSchedule();
+        renderCurrentDay();
+        if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      async function copyText(text, postIndex, field) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            const ok = document.execCommand('copy');
+            area.remove();
+            if (!ok) throw new Error('copy failed');
+          }
+          state.copied[postIndex] = { ...(state.copied[postIndex] || {}), [field]: true };
+          saveState();
+          renderSchedule();
+          renderCurrentDay();
+          showToast(field === 'title' ? '标题已复制' : '帖子正文已复制');
+        } catch (error) {
+          showToast('复制失败，请允许浏览器访问剪贴板后重试。', true);
+        }
+      }
+
+      function render() {
+        const hasPosts = state.posts.length > 0;
+        els.emptyView.hidden = hasPosts;
+        els.workspace.hidden = !hasPosts;
+        els.topActions.hidden = !hasPosts;
+        els.brandFile.textContent = hasPosts ? `${state.fileName} · ${state.posts.length} 条` : '一键复制标题与正文';
+        if (!hasPosts) return;
+        state.selectedDay = Math.min(Math.max(state.selectedDay, 1), totalDays());
+        els.startDate.value = state.startDate;
+        els.sidebarTitle.textContent = `${state.courseName} · ${totalDays()} 天`;
+        renderSchedule();
+        renderCurrentDay();
+      }
+
+      function renderSchedule() {
+        els.dayList.replaceChildren();
+        const fragment = document.createDocumentFragment();
+        for (let day = 1; day <= totalDays(); day++) {
+          const stats = dayStats(day);
+          const start = (day - 1) * POSTS_PER_DAY + 1;
+          const end = Math.min(day * POSTS_PER_DAY, state.posts.length);
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `day-button${day === state.selectedDay ? ' active' : ''}`;
+          button.dataset.day = day;
+          button.setAttribute('aria-current', day === state.selectedDay ? 'date' : 'false');
+          button.innerHTML = `
+            <span class="day-number">${String(day).padStart(2, '0')}</span>
+            <span><span class="day-date">${escapeHtml(formatDate(day))}</span><span class="day-range">第 ${start}–${end} 条</span></span>
+            <span class="day-progress${stats.done === stats.posts.length ? ' done' : ''}">${stats.done}/${stats.posts.length}</span>`;
+          button.addEventListener('click', () => setDay(day));
+          fragment.appendChild(button);
+        }
+        els.dayList.appendChild(fragment);
+        requestAnimationFrame(() => els.dayList.querySelector('.active')?.scrollIntoView({ block: 'center' }));
+      }
+
+      function renderCurrentDay() {
+        const day = state.selectedDay;
+        const stats = dayStats(day);
+        const startIndex = (day - 1) * POSTS_PER_DAY;
+        const endNumber = startIndex + stats.posts.length;
+        const allDone = stats.posts.length > 0 && stats.done === stats.posts.length;
+        const totalDone = state.posts.reduce((sum, _, index) => sum + (completed(index) ? 1 : 0), 0);
+
+        els.dayEyebrow.textContent = `第 ${day} / ${totalDays()} 天`;
+        els.currentDayTitle.textContent = formatDate(day, true);
+        els.daySubtitle.textContent = `${state.courseName} · 第 ${startIndex + 1}–${endNumber} 条`;
+        els.mobileDayLabel.textContent = `第 ${day} 天 · ${formatDate(day)}`;
+        els.mobilePrev.disabled = day <= 1;
+        els.mobileNext.disabled = day >= totalDays();
+        els.dayDoneCount.textContent = `${stats.done} / ${stats.posts.length}`;
+        els.totalDoneCount.textContent = `${totalDone} / ${state.posts.length}`;
+        els.progressFill.style.width = `${state.posts.length ? (totalDone / state.posts.length) * 100 : 0}%`;
+
+        els.postGrid.replaceChildren();
+        const fragment = document.createDocumentFragment();
+        stats.posts.forEach((post, offset) => {
+          const postIndex = startIndex + offset;
+          const status = state.copied[postIndex] || {};
+          const card = document.createElement('article');
+          card.className = 'post-card';
+          const indexBox = document.createElement('div');
+          indexBox.className = 'post-index';
+          indexBox.textContent = String(postIndex + 1).padStart(3, '0');
+
+          const actions = document.createElement('div');
+          actions.className = 'post-actions';
+
+          const titleButton = document.createElement('button');
+          titleButton.type = 'button';
+          titleButton.className = `copy-title${status.title ? ' copied' : ''}`;
+          titleButton.setAttribute('aria-label', `复制标题：${post.title}`);
+          titleButton.append(document.createTextNode(post.title));
+          titleButton.appendChild(copyBadge(status.title, '标题'));
+          titleButton.addEventListener('click', () => copyText(post.title, postIndex, 'title'));
+
+          const contentButton = document.createElement('button');
+          contentButton.type = 'button';
+          contentButton.className = `copy-content${status.content ? ' copied' : ''}`;
+          contentButton.setAttribute('aria-label', `复制第 ${postIndex + 1} 条帖子正文`);
+          post.lines.forEach(line => {
+            const span = document.createElement('span');
+            span.textContent = line;
+            contentButton.appendChild(span);
+          });
+          contentButton.appendChild(copyBadge(status.content, '正文'));
+          contentButton.addEventListener('click', () => copyText(post.content, postIndex, 'content'));
+
+          actions.append(titleButton, contentButton);
+          card.append(indexBox, actions);
+          fragment.appendChild(card);
+        });
+        els.postGrid.appendChild(fragment);
+
+        if (day === totalDays() && allDone) {
+          els.finishTitle.textContent = '全部帖子已经完成';
+          els.finishHint.textContent = `共 ${state.posts.length} 条，所有标题和正文都已复制过。`;
+          els.nextDayButton.textContent = '已全部完成 ✓';
+          els.nextDayButton.disabled = true;
+        } else {
+          els.finishTitle.textContent = allDone ? '今天的 10 条已经完成' : '复制完今天 10 条后，可进入下一天';
+          els.finishHint.textContent = allDone ? '进度已保存在本机，下次打开会继续保留。' : '每条的标题和正文都复制过，才算完成。';
+          els.nextDayButton.textContent = '完成，进入下一天 →';
+          els.nextDayButton.disabled = !allDone;
+        }
+      }
+
+      function copyBadge(done, label) {
+        const badge = document.createElement('span');
+        badge.className = 'copy-label';
+        badge.innerHTML = done
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 12 4 4L19 6"/></svg>已复制`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>复制${label}`;
+        return badge;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+      }
+
+      function showToast(message, isError = false) {
+        clearTimeout(toastTimer);
+        els.toast.textContent = message;
+        els.toast.className = `toast show${isError ? ' error' : ''}`;
+        toastTimer = setTimeout(() => { els.toast.className = 'toast'; }, 2200);
+      }
+
+      els.fileInput.addEventListener('change', event => {
+        handleFile(event.target.files?.[0]);
+        event.target.value = '';
+      });
+      ['dragenter', 'dragover'].forEach(type => els.dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        els.dropZone.classList.add('dragging');
+      }));
+      ['dragleave', 'drop'].forEach(type => els.dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        els.dropZone.classList.remove('dragging');
+      }));
+      els.dropZone.addEventListener('drop', event => handleFile(event.dataTransfer.files?.[0]));
+      els.pasteButton.addEventListener('click', () => els.pasteDialog.showModal());
+      els.replaceFileButton.addEventListener('click', () => els.fileInput.click());
+      els.closeDialog.addEventListener('click', () => els.pasteDialog.close());
+      els.cancelPaste.addEventListener('click', () => els.pasteDialog.close());
+      els.importPaste.addEventListener('click', () => {
+        try {
+          importMarkdown(els.pasteArea.value, '粘贴的 Markdown');
+          els.pasteDialog.close();
+          els.pasteArea.value = '';
+        } catch (error) { showToast(error.message, true); }
+      });
+      els.startDate.addEventListener('change', () => {
+        if (!els.startDate.value) return;
+        state.startDate = els.startDate.value;
+        saveState();
+        renderSchedule();
+        renderCurrentDay();
+      });
+      els.mobilePrev.addEventListener('click', () => setDay(state.selectedDay - 1));
+      els.mobileNext.addEventListener('click', () => setDay(state.selectedDay + 1));
+      els.nextDayButton.addEventListener('click', () => setDay(state.selectedDay + 1));
+
+      function registerWebMCP() {
+        const context = document.modelContext;
+        if (!context?.registerTool) return;
+        const controller = new AbortController();
+        Promise.resolve(context.registerTool({
+          name: 'get_current_post_batch',
+          title: '读取当前帖子批次',
+          description: '读取页面当前显示的是第几天、日期、进度和十条帖子。',
+          inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+          annotations: { readOnlyHint: true, untrustedContentHint: true },
+          execute() {
+            const stats = dayStats(state.selectedDay);
+            return {
+              day: state.selectedDay,
+              totalDays: totalDays(),
+              date: formatDate(state.selectedDay, true),
+              completed: stats.done,
+              posts: stats.posts.map(post => ({ title: post.title, content: post.content }))
+            };
+          }
+        }, { signal: controller.signal })).catch(() => {});
+        Promise.resolve(context.registerTool({
+          name: 'navigate_to_post_day',
+          title: '切换帖子日期',
+          description: '把页面切换到指定的帖子日程天数。',
+          inputSchema: {
+            type: 'object',
+            properties: { day: { type: 'integer', minimum: 1 } },
+            required: ['day'],
+            additionalProperties: false
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute(input) {
+            if (!Number.isInteger(input?.day) || input.day < 1 || input.day > totalDays()) throw new Error('天数超出有效范围');
+            setDay(input.day);
+            return { day: state.selectedDay, date: formatDate(state.selectedDay, true) };
+          }
+        }, { signal: controller.signal })).catch(() => {});
+      }
+
+      render();
+      registerWebMCP();
+    })();
+  </script>
+</body>
+</html>
